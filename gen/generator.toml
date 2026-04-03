@@ -1,0 +1,5 @@
+[general]
+library_name = "libpio"
+output_file_path = "./libpiolib_api.jl"
+jll_pkg_name = "PIOLib_jll"
+export_symbol_prefixes = ["pio_"]
