@@ -1,0 +1,2 @@
+const PIO_ORIGIN_ANY = typemax(UInt32)
+const PIO_ORIGIN_INVALID = PIO_ORIGIN_ANY

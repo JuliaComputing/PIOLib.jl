@@ -721,10 +721,6 @@ const GPIO_IN = 0
 
 const PARAM_ASSERTIONS_ENABLED_PIO = 0
 
-const PIO_ORIGIN_ANY = uint(~0)
-
-const PIO_ORIGIN_INVALID = PIO_ORIGIN_ANY
-
 const pio0 = pio_open_helper(0)
 
 const _PIO_INVALID_IN_SRC = Cuint(0x08)
@@ -736,6 +732,10 @@ const _PIO_INVALID_SET_DEST = Cuint(0x20)
 const _PIO_INVALID_MOV_SRC = Cuint(0x40)
 
 const _PIO_INVALID_MOV_DEST = Cuint(0x80)
+
+const PIO_ORIGIN_ANY = typemax(UInt32)
+const PIO_ORIGIN_INVALID = PIO_ORIGIN_ANY
+
 
 # exports
 const PREFIXES = ["pio_"]
