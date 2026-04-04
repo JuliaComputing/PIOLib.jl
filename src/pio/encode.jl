@@ -112,14 +112,7 @@ function encode_instr(instr::PIOInstruction;
     end
 
     raw = _encode(instr, labels)
-    raw |= LibPIO.pio_encode_delay(UInt32(d))
-    if s !== nothing
-        if sideset_opt
-            raw |= LibPIO.pio_encode_sideset_opt(UInt32(sideset_bits), UInt32(s))
-        else
-            raw |= LibPIO.pio_encode_sideset(UInt32(sideset_bits), UInt32(s))
-        end
-    end
+    raw |= _encode_delay_sideset(UInt32(d), s, sideset_bits, sideset_opt)
     UInt16(raw)
 end
 
@@ -129,32 +122,116 @@ function _resolve(target::Symbol, labels::Dict{Symbol, UInt8})
 end
 _resolve(target::Integer, ::Dict{Symbol, UInt8}) = UInt32(target)
 
-_encode(i::Jmp{:always},   l) = LibPIO.pio_encode_jmp(_resolve(i.target, l))
-_encode(i::Jmp{:not_x},    l) = LibPIO.pio_encode_jmp_not_x(_resolve(i.target, l))
-_encode(i::Jmp{:x_dec},    l) = LibPIO.pio_encode_jmp_x_dec(_resolve(i.target, l))
-_encode(i::Jmp{:not_y},    l) = LibPIO.pio_encode_jmp_not_y(_resolve(i.target, l))
-_encode(i::Jmp{:y_dec},    l) = LibPIO.pio_encode_jmp_y_dec(_resolve(i.target, l))
-_encode(i::Jmp{:x_ne_y},   l) = LibPIO.pio_encode_jmp_x_ne_y(_resolve(i.target, l))
-_encode(i::Jmp{:pin},      l) = LibPIO.pio_encode_jmp_pin(_resolve(i.target, l))
-_encode(i::Jmp{:not_osre}, l) = LibPIO.pio_encode_jmp_not_osre(_resolve(i.target, l))
+# Pure Julia instruction encoding — no hardware access needed.
+# Bit layout from RP2040 datasheet §3.4:
+#   [15:13] opcode  [12:8] delay/sideset  [7:0] instruction-specific
 
-_encode(i::Wait{:gpio}, _) = LibPIO.pio_encode_wait_gpio(i.polarity, UInt32(i.index))
-_encode(i::Wait{:pin},  _) = LibPIO.pio_encode_wait_pin(i.polarity, UInt32(i.index))
-_encode(i::Wait{:irq},  _) = LibPIO.pio_encode_wait_irq(i.polarity, i.relative, UInt32(i.index))
+_src_dest_bits(r::PIORegister) = UInt32(to_pio_src_dest(r)) & UInt32(0x07)
 
-_encode(i::In,  _) = LibPIO.pio_encode_in(to_pio_src_dest(i.src), UInt32(i.bit_count))
-_encode(i::Out, _) = LibPIO.pio_encode_out(to_pio_src_dest(i.dest), UInt32(i.bit_count))
+function _encode_delay_sideset(delay::UInt32, sideset, sideset_bits::Integer, sideset_opt::Bool)
+    if sideset === nothing
+        delay << 8
+    elseif sideset_opt
+        ss = UInt32(sideset)
+        (UInt32(0x1000) | (ss << (12 - sideset_bits)) | (delay << 8))
+    else
+        ss = UInt32(sideset)
+        ((ss << (13 - sideset_bits)) | (delay << 8))
+    end
+end
 
-_encode(i::Push, _) = LibPIO.pio_encode_push(i.if_full, i.block)
-_encode(i::Pull, _) = LibPIO.pio_encode_pull(i.if_empty, i.block)
+# JMP: 000 | delay/ss | cond[7:5] | addr[4:0]
+const _JMP_CONDS = Dict{Symbol, UInt32}(
+    :always   => 0b000,
+    :not_x    => 0b001,
+    :x_dec    => 0b010,
+    :not_y    => 0b011,
+    :y_dec    => 0b100,
+    :x_ne_y   => 0b101,
+    :pin      => 0b110,
+    :not_osre => 0b111,
+)
 
-_encode(i::Mov{:none},    _) = LibPIO.pio_encode_mov(to_pio_src_dest(i.dest), to_pio_src_dest(i.src))
-_encode(i::Mov{:invert},  _) = LibPIO.pio_encode_mov_not(to_pio_src_dest(i.dest), to_pio_src_dest(i.src))
-_encode(i::Mov{:reverse}, _) = LibPIO.pio_encode_mov_reverse(to_pio_src_dest(i.dest), to_pio_src_dest(i.src))
+function _encode(i::Jmp{Cond}, l) where {Cond}
+    addr = _resolve(i.target, l) & UInt32(0x1f)
+    cond = _JMP_CONDS[Cond]
+    UInt32(0x0000) | (cond << 5) | addr
+end
 
-_encode(i::Irq{:set},   _) = LibPIO.pio_encode_irq_set(i.relative, UInt32(i.index))
-_encode(i::Irq{:wait},  _) = LibPIO.pio_encode_irq_wait(i.relative, UInt32(i.index))
-_encode(i::Irq{:clear}, _) = LibPIO.pio_encode_irq_clear(i.relative, UInt32(i.index))
+# WAIT: 001 | delay/ss | pol[7] | src[6:5] | idx[4:0]
+const _WAIT_SRCS = Dict{Symbol, UInt32}(:gpio => 0b00, :pin => 0b01, :irq => 0b10)
 
-_encode(i::Set, _) = LibPIO.pio_encode_set(to_pio_src_dest(i.dest), UInt32(i.value))
-_encode(i::Nop, _) = LibPIO.pio_encode_nop()
+function _encode(i::Wait{Src}, _) where {Src}
+    pol = UInt32(i.polarity) << 7
+    src = _WAIT_SRCS[Src] << 5
+    idx = UInt32(i.index) & UInt32(0x1f)
+    if Src === :irq && i.relative
+        idx |= UInt32(0x10)
+    end
+    UInt32(0x2000) | pol | src | idx
+end
+
+# IN: 010 | delay/ss | src[7:5] | count[4:0]
+function _encode(i::In, _)
+    src = _src_dest_bits(i.src) << 5
+    count = UInt32(i.bit_count == 32 ? 0 : i.bit_count) & UInt32(0x1f)
+    UInt32(0x4000) | src | count
+end
+
+# OUT: 011 | delay/ss | dest[7:5] | count[4:0]
+function _encode(i::Out, _)
+    dest = _src_dest_bits(i.dest) << 5
+    count = UInt32(i.bit_count == 32 ? 0 : i.bit_count) & UInt32(0x1f)
+    UInt32(0x6000) | dest | count
+end
+
+# PUSH: 100 | delay/ss | 0[7] | iff[6] | blk[5] | 00000
+function _encode(i::Push, _)
+    UInt32(0x8000) | (UInt32(i.if_full) << 6) | (UInt32(i.block) << 5)
+end
+
+# PULL: 100 | delay/ss | 1[7] | ife[6] | blk[5] | 00000
+function _encode(i::Pull, _)
+    UInt32(0x8080) | (UInt32(i.if_empty) << 6) | (UInt32(i.block) << 5)
+end
+
+# MOV: 101 | delay/ss | dest[7:5] | op[4:3] | src[2:0]
+const _MOV_OPS = Dict{Symbol, UInt32}(:none => 0b00, :invert => 0b01, :reverse => 0b10)
+
+function _encode(i::Mov{Op}, _) where {Op}
+    dest = _src_dest_bits(i.dest) << 5
+    op = _MOV_OPS[Op] << 3
+    src = _src_dest_bits(i.src)
+    UInt32(0xa000) | dest | op | src
+end
+
+# IRQ: 110 | delay/ss | 0[7] | clr[6] | wait[5] | idx[4:0]
+function _encode(i::Irq{:set}, _)
+    idx = UInt32(i.index) & UInt32(0x1f)
+    if i.relative; idx |= UInt32(0x10); end
+    UInt32(0xc000) | idx
+end
+
+function _encode(i::Irq{:wait}, _)
+    idx = UInt32(i.index) & UInt32(0x1f)
+    if i.relative; idx |= UInt32(0x10); end
+    UInt32(0xc000) | UInt32(0x20) | idx
+end
+
+function _encode(i::Irq{:clear}, _)
+    idx = UInt32(i.index) & UInt32(0x1f)
+    if i.relative; idx |= UInt32(0x10); end
+    UInt32(0xc000) | UInt32(0x40) | idx
+end
+
+# SET: 111 | delay/ss | dest[7:5] | data[4:0]
+function _encode(i::Set, _)
+    dest = _src_dest_bits(i.dest) << 5
+    data = UInt32(i.value) & UInt32(0x1f)
+    UInt32(0xe000) | dest | data
+end
+
+# NOP: mov y, y
+function _encode(::Nop, _)
+    UInt32(0xa000) | (_src_dest_bits(RegY()) << 5) | _src_dest_bits(RegY())
+end
