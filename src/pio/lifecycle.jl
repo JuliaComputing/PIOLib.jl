@@ -37,12 +37,14 @@ end
 function open_pio(idx::Integer)
     handle = LibPIO.pio_open(UInt32(idx))
     _check_pio_handle(handle, idx)
+    LibPIO.pio_select(handle)
     PIOBlock(handle)
 end
 
 function open_pio(name::AbstractString)
     handle = LibPIO.pio_open_by_name(name)
     _check_pio_handle(handle, "\"$name\"")
+    LibPIO.pio_select(handle)
     PIOBlock(handle)
 end
 
