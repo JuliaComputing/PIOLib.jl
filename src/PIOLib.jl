@@ -31,7 +31,8 @@ function __init__()
     ret = LibPIO.pio_init()
     ret != 0 && error("PIOLib: pio_init() failed (code $ret)")
     pio = LibPIO.pio_open_helper(UInt32(0))
-    LibPIO._pio_is_err(pio) && error("PIOLib: pio_open_helper(0) failed ($(reinterpret(UInt, pio)))")
+    (pio == C_NULL || reinterpret(UInt, pio) >= reinterpret(UInt, Ptr{LibPIO.pio_instance}(-200))) &&
+        error("PIOLib: pio_open_helper(0) failed ($(reinterpret(UInt, pio)))")
 end
 
 # Types
