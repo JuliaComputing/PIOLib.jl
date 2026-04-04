@@ -1,7 +1,7 @@
 using PIOLib
 
 """
-    shift_register_program(; ser_pin, clk_pin, rclk_pin, nbits, clkdiv=1.0f0)
+    shift_register_program(pio::PIOBlock; ser_pin, clk_pin, rclk_pin, nbits, clkdiv=1.0f0)
 
 Build a PIO program and SM config for driving a shift register (e.g. 74HC595).
 
@@ -32,7 +32,7 @@ Total: `2N + 3` cycles per transfer.
 `(program::PIOProgram, config::SMConfig)` — after `init!`, call
 `setup_shift_register!(sm, nbits)` to load the bit count before enabling.
 """
-function shift_register_program(; ser_pin::Integer, clk_pin::Integer, rclk_pin::Integer,
+function shift_register_program(pio::PIOBlock; ser_pin::Integer, clk_pin::Integer, rclk_pin::Integer,
                                   nbits::Integer, clkdiv::Real=1.0f0)
     1 <= nbits <= 31 || error("nbits must be 1-31 (SET immediate is 5 bits, and 32 encodes as 0 in autopull threshold)")
 
@@ -47,7 +47,7 @@ function shift_register_program(; ser_pin::Integer, clk_pin::Integer, rclk_pin::
         Wrap(),
     ]; sideset_bits=1)
 
-    config = SMConfig(;
+    config = SMConfig(pio;
         out_pins=(ser_pin, 1),
         set_pins=(rclk_pin, 1),
         sideset_pin_base=clk_pin,
@@ -83,12 +83,12 @@ shift_out!(sm::StateMachine, data::UInt32) = put!(sm, data)
 #   RCLK_PIN = 4
 #   NBITS    = 8
 #
-#   prog, config = shift_register_program(
-#       ser_pin=SER_PIN, clk_pin=CLK_PIN, rclk_pin=RCLK_PIN,
-#       nbits=NBITS, clkdiv=62.5f0,
-#   )
-#
 #   open_pio(0) do pio
+#       prog, config = shift_register_program(pio;
+#           ser_pin=SER_PIN, clk_pin=CLK_PIN, rclk_pin=RCLK_PIN,
+#           nbits=NBITS, clkdiv=62.5f0,
+#       )
+#
 #       for pin in (SER_PIN, CLK_PIN, RCLK_PIN)
 #           pio_pin_init!(pio, pin)
 #       end

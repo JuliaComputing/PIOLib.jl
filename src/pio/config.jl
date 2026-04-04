@@ -1,9 +1,8 @@
 """
-    SMConfig(; kwargs...)
     SMConfig(pio::PIOBlock; kwargs...)
 
-Construct an SM configuration with optional keyword arguments. The first form uses a
-global default; the second uses defaults appropriate for the specific PIO block.
+Construct an SM configuration with keyword arguments. Requires a [`PIOBlock`](@ref) handle
+to obtain chip-specific defaults.
 
 See [`Base.setproperty!(::SMConfig, ::Symbol, value)`](@ref) for all settable properties.
 
@@ -17,14 +16,6 @@ config = SMConfig(pio;
 )
 ```
 """
-function SMConfig(; kwargs...)
-    c = SMConfig(LibPIO.pio_get_default_sm_config())
-    for (k, v) in pairs(kwargs)
-        setproperty!(c, k, v)
-    end
-    c
-end
-
 function SMConfig(pio::PIOBlock; kwargs...)
     c = SMConfig(LibPIO.pio_get_default_sm_config_for_pio(pio.handle))
     for (k, v) in pairs(kwargs)

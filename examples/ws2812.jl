@@ -1,7 +1,7 @@
 using PIOLib
 
 """
-    ws2812_program(; pin, sys_clk=200_000_000.0)
+    ws2812_program(pio::PIOBlock; pin, sys_clk=200_000_000.0)
 
 Build a PIO program and SM config for driving a WS2812 (NeoPixel) LED strip on a
 single GPIO pin.
@@ -37,7 +37,7 @@ reloads the OSR automatically.
 # See also
 [`ws2812_put!`](@ref), [`ws2812_rgb!`](@ref)
 """
-function ws2812_program(; pin::Integer, sys_clk::Real=200_000_000.0)
+function ws2812_program(pio::PIOBlock; pin::Integer, sys_clk::Real=200_000_000.0)
     T1 = 2
     T2 = 5
     T3 = 3
@@ -55,7 +55,7 @@ function ws2812_program(; pin::Integer, sys_clk::Real=200_000_000.0)
         Wrap(),
     ]; sideset_bits=1)
 
-    config = SMConfig(;
+    config = SMConfig(pio;
         sideset_pin_base=pin,
         sideset=(1, false, false),
         out_shift=(false, true, 24),
@@ -90,9 +90,9 @@ end
 #   LED_PIN = 2
 #   NUM_LEDS = 8
 #
-#   prog, config = ws2812_program(pin=LED_PIN)
-#
 #   open_pio(0) do pio
+#       prog, config = ws2812_program(pio; pin=LED_PIN)
+#
 #       pio_pin_init!(pio, LED_PIN)
 #
 #       offset = load_program!(pio, prog, config)

@@ -8,7 +8,7 @@ using PIOLib
 # tracked in scratch X and pushed to the RX FIFO on each transition.
 
 """
-    quadrature_program(; pin_a::Integer)
+    quadrature_program(pio::PIOBlock; pin_a::Integer)
 
 Build a PIO program and SM config for a 4x quadrature decoder. Pin B must be `pin_a + 1`.
 
@@ -35,7 +35,7 @@ the initial PC to `init!` to skip the jump table.
 # See also
 [`quadrature_position`](@ref)
 """
-function quadrature_program(; pin_a::Integer)
+function quadrature_program(pio::PIOBlock; pin_a::Integer)
     prog = build_program([
         # Jump table (addresses 0-15), indexed by old_AB:new_AB
         Jmp{:always}(:delta0),   #  0: 00→00 no change
@@ -79,7 +79,7 @@ function quadrature_program(; pin_a::Integer)
         Wrap(),
     ]; origin=0)
 
-    config = SMConfig(;
+    config = SMConfig(pio;
         in_pin_base=pin_a,
         in_shift=(false, false, 32),
     )
@@ -109,9 +109,9 @@ end
 #
 #   PIN_A = 10   # channel B must be pin 11
 #
-#   prog, config, entry = quadrature_program(pin_a=PIN_A)
-#
 #   open_pio(0) do pio
+#       prog, config, entry = quadrature_program(pio; pin_a=PIN_A)
+#
 #       pio_pin_init!(pio, PIN_A)
 #       pio_pin_init!(pio, PIN_A + 1)
 #

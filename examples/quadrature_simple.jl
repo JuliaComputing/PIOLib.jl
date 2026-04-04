@@ -1,7 +1,7 @@
 using PIOLib
 
 """
-    quadrature_simple_program(; pin_a::Integer, pin_b::Integer)
+    quadrature_simple_program(pio::PIOBlock; pin_a::Integer, pin_b::Integer)
 
 Build a poll-and-push quadrature decoder for two independent (non-consecutive) GPIO pins.
 Direction decoding is done on the host side via a lookup table.
@@ -24,7 +24,7 @@ Call [`setup_quadrature!`](@ref) after `init!` to seed the previous-state regist
 # See also
 [`setup_quadrature!`](@ref), [`QuadratureDecoder`](@ref), [`quadrature_read!`](@ref)
 """
-function quadrature_simple_program(; pin_a::Integer, pin_b::Integer)
+function quadrature_simple_program(pio::PIOBlock; pin_a::Integer, pin_b::Integer)
     prog = build_program([
         WrapTarget(),
         Mov{:none}(ISR(), Null()),
@@ -46,7 +46,7 @@ function quadrature_simple_program(; pin_a::Integer, pin_b::Integer)
         Wrap(),
     ])
 
-    config = SMConfig(;
+    config = SMConfig(pio;
         in_pin_base=pin_a,
         jmp_pin=pin_b,
         in_shift=(false, false, 32),
@@ -121,9 +121,9 @@ end
 #   PIN_A = 10
 #   PIN_B = 14   # any GPIO — need not be adjacent
 #
-#   prog, config = quadrature_simple_program(pin_a=PIN_A, pin_b=PIN_B)
-#
 #   open_pio(0) do pio
+#       prog, config = quadrature_simple_program(pio; pin_a=PIN_A, pin_b=PIN_B)
+#
 #       pio_pin_init!(pio, PIN_A)
 #       pio_pin_init!(pio, PIN_B)
 #
