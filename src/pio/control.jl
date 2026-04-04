@@ -33,6 +33,18 @@ restart!(sm::StateMachine) = LibPIO.pio_sm_restart(sm.pio.handle, sm.sm)
 restart_clkdiv!(sm::StateMachine) = LibPIO.pio_sm_clkdiv_restart(sm.pio.handle, sm.sm)
 
 """
+    clkdiv(target_hz; sys_clk=200_000_000.0) -> Float32
+
+Compute the SM clock divider needed to achieve `target_hz` execution frequency.
+Each SM instruction takes one tick at this frequency (plus any delay cycles).
+
+```julia
+config.clkdiv = clkdiv(800_000)    # 800kHz SM clock from 200MHz sys_clk
+```
+"""
+clkdiv(target_hz::Real; sys_clk::Real=200_000_000.0) = Float32(sys_clk / target_hz)
+
+"""
     set_clkdiv!(sm, div::Real)
     set_clkdiv!(sm, div_int::Integer, div_frac::Integer)
 

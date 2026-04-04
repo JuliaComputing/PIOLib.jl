@@ -1,9 +1,11 @@
 """
     load_program!(pio, prog) -> offset
-    load_program!(pio, prog, offset)
+    load_program!(pio, prog, config::SMConfig) -> offset
+    load_program!(pio, prog, offset::Integer)
 
 Load a PIO program into instruction memory. The first form auto-selects a free location
-and returns the offset; the second places it at a specific offset.
+and returns the offset; the second also adjusts `config.wrap` to the loaded address;
+the third places it at a specific offset.
 
 All state machines on the same PIO block share instruction memory, so multiple programs
 can coexist if they fit.
@@ -19,6 +21,12 @@ function load_program!(pio::PIOBlock, prog::PIOProgram)
         offset = LibPIO.pio_add_program(pio.handle, Ref(c_prog))
     end
     check_error!(pio)
+    offset
+end
+
+function load_program!(pio::PIOBlock, prog::PIOProgram, config::SMConfig)
+    offset = load_program!(pio, prog)
+    config.wrap = (offset + prog.wrap_target, offset + prog.wrap)
     offset
 end
 

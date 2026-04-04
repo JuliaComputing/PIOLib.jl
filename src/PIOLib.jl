@@ -51,7 +51,7 @@ export open_pio, claim_sm, unclaim!
 # SM config & control
 export init!, set_config!, enable!, disable!, restart!, restart_clkdiv!
 export exec!, exec_blocking!
-export set_clkdiv!, set_pins!, set_pindirs!, set_consecutive_pindirs!, set_dmactrl!
+export clkdiv, set_clkdiv!, set_pins!, set_pindirs!, set_consecutive_pindirs!, set_dmactrl!
 
 # Program management
 export load_program!, remove_program!, can_load_program, clear_programs!
