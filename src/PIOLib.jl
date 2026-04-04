@@ -30,6 +30,7 @@ include("hw/gpio.jl")
 function __init__()
     ret = LibPIO.pio_init()
     ret != 0 && error("PIOLib: pio_init() failed (code $ret)")
+    LibPIO.pio_open_helper(UInt32(0))
 end
 
 # Types
