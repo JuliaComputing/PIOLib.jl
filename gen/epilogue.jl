@@ -6,8 +6,13 @@ const PIO_ORIGIN_INVALID = PIO_ORIGIN_ANY
 
 # Vtable helpers
 
+function _pio_is_err(pio::PIO)
+    reinterpret(UInt, pio) >= reinterpret(UInt, Ptr{pio_instance}(-200))
+end
+
 function _get_chip(pio::PIO)
-    pio == C_NULL && error("PIO handle is null — has pio_init() / pio_open() been called?")
+    (pio == C_NULL || _pio_is_err(pio)) &&
+        error("PIO handle is invalid ($(reinterpret(UInt, pio))) — has pio_init() / pio_open() succeeded?")
     instance = unsafe_load(pio)
     instance.chip == C_NULL && error("PIO chip pointer is null")
     unsafe_load(instance.chip)
