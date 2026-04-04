@@ -10,6 +10,8 @@ function _pio_is_err(pio::PIO)
     reinterpret(UInt, pio) >= reinterpret(UInt, Ptr{pio_instance}(-200))
 end
 
+PIO_ERR_VAL(pio::PIO) = reinterpret(Int, pio)
+
 function _get_chip(pio::PIO)
     (pio == C_NULL || _pio_is_err(pio)) &&
         error("PIO handle is invalid ($(reinterpret(UInt, pio))) — has pio_init() / pio_open() succeeded?")

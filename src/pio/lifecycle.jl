@@ -27,15 +27,22 @@ finally
 end
 ```
 """
+function _check_pio_handle(handle::LibPIO.PIO, desc)
+    if handle == C_NULL || LibPIO._pio_is_err(handle)
+        code = LibPIO.PIO_ERR_VAL(handle)
+        throw(PIOError("failed to open PIO $desc (error $code)"))
+    end
+end
+
 function open_pio(idx::Integer)
     handle = LibPIO.pio_open(UInt32(idx))
-    handle == C_NULL && throw(PIOError("failed to open PIO $idx"))
+    _check_pio_handle(handle, idx)
     PIOBlock(handle)
 end
 
 function open_pio(name::AbstractString)
     handle = LibPIO.pio_open_by_name(name)
-    handle == C_NULL && throw(PIOError("failed to open PIO \"$name\""))
+    _check_pio_handle(handle, "\"$name\"")
     PIOBlock(handle)
 end
 
