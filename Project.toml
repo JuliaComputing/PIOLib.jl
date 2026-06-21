@@ -1,6 +1,6 @@
 name = "PIOLib"
 uuid = "a21b0171-75fd-41b6-8640-f97fa3fa9a76"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Benjamin Chung <ckfinite@gmail.com>"]
 
 [deps]
